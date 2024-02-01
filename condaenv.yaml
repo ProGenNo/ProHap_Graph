@@ -1,0 +1,13 @@
+name: neo4j_graph
+channels:
+  - bioconda
+  - conda-forge
+  - anaconda
+dependencies:
+  - python=3.11
+  - gffutils
+  - pip
+  - pip:
+    - pandas
+    - argparse
+    - neo4j
