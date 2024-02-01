@@ -1,0 +1,13 @@
+# Ensembl version (use the same as was used for the ProHap translation and the reference proteome for the search)
+ensembl_release: 110
+
+# ProHap output file - FASTA file of haplotype cDNA translations (without reference and contaminants)
+haplo_fasta: ""
+
+# ProHap output file - haplotype table
+haplo_table: ""
+
+# Neo4j instance details
+neo4j_uri: ""
+neo4j_username: ""
+neo4j_pwd: ""
