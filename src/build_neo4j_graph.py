@@ -1,5 +1,6 @@
 import argparse
 import pandas as pd
+import time
 from neo4j import GraphDatabase
 from neo4j_commands import Neo4jCommands
 from common import read_fasta
@@ -123,8 +124,9 @@ for i,geneID in enumerate(all_gene_ids[:]):
                 # connect the exon to this transcript
                 query_str += ', (' + transcriptID + ')' + '-[:INCLUDES_EXON {exon_number: ' + exon_number + '}]->(' + exonID + ')'
 
-        #session.run(query_str)
+        session.run(query_str)
         print('Processed:', i, '/', len(all_gene_ids), end='\r')
+        time.sleep(1)
 
 # add the haplotypes and protein sequences
 haplotype_match_commands = {}
@@ -158,7 +160,10 @@ for prot_idx,fasta_elem in enumerate(haplo_proteins.values()):
             skipped_haplotypes += 1
             continue
 
-        geneID = gene_id_df.loc[haplotype_row['TranscriptID']]['GeneID']    # Gene ID
+        try:
+            geneID = gene_id_df.loc[haplotype_row['TranscriptID']]['GeneID']    # Gene ID
+        except:
+            continue
         chromosome = haplotype_row['chromosome']                            # chromosome
         DNA_changes = haplotype_row['DNA_changes']                          # String: DNA changes
         reading_frame = int(fasta_elem['reading_frames'][hap_idx][0])             # Reading frame
@@ -225,6 +230,7 @@ for prot_idx,fasta_elem in enumerate(haplo_proteins.values()):
                 query_str += ', (' + haplo_hash + ')-[:INCLUDES_ALT_ALLELE {var_order: ' + str(i) + '}]->(' + change_id_safe + ')'
 
         session.run(query_str)
+        time.sleep(0.75)
     print('Processed:', prot_idx, '/', len(haplo_proteins), end='\r')
 
 print()
@@ -244,6 +250,7 @@ for i,fasta_elem in enumerate(ref_proteins.values()):
         query_str += ', (' + protID + ')-[:ENCODED_BY_TRANSCRIPT]->(' + transcriptID + ')'
 
         session.run(query_str)
+        time.sleep(0.75)
 
     print('Processed:', i, '/', len(ref_proteins), end='\r')
 

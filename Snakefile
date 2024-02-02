@@ -1,5 +1,5 @@
 # Specify the configuration file below:
-configfile: "config_example.yaml"
+configfile: "config.yaml"
 
 Ensembl_FTP_URL = "ftp.ensembl.org/pub/release-" + str(config['ensembl_release']) + "/"
 annotationFilename = "Homo_sapiens.GRCh38." + str(config['ensembl_release']) + ".chr_patch_hapl_scaff"
@@ -65,8 +65,8 @@ rule build_database_graph:
         ref_fasta="data/fasta/ensembl_reference_proteinDB_" + str(config['ensembl_release']) + "_tagged.fa",
         cdna_fasta="data/fasta/total_cdnas_" + str(config['ensembl_release']) + ".fa",
         haplo_table=config['haplo_table'],
-        tr_ids='protein_transcript_ids_' + config['ensembl_release'] + '.csv',
-        gene_ids='gene_transcript_ids_' + config['ensembl_release'] + '.csv',
+        tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '.csv',
     output:
         "flag_baseDB_ready"
     params:
@@ -75,5 +75,5 @@ rule build_database_graph:
         pwd=config['neo4j_pwd']
     conda: "condaenv.yaml"
     shell:
-        "python src/build_neo4j_graph.py -hap_fa {input.haplo_fasta} -ref_fa {input.ref_fasta} -cdna_fa {input_cdna_fasta} -hap_db {input.haplo_db} -annot_db {input.annot} -tr_id {input.tr_ids} -g_id {input.gene_ids} -uri {params.uri} -usr {params.usr} -p {params.pwd} && touch {output}"
+        "python src/build_neo4j_graph.py -hap_fa {input.haplo_fasta} -ref_fa {input.ref_fasta} -cdna_fa {input.cdna_fasta} -hap_db {input.haplo_table} -annot_db {input.annot} -tr_id {input.tr_ids} -g_id {input.gene_ids} -uri {params.uri} -usr {params.usr} -p {params.pwd} && touch {output}"
 
