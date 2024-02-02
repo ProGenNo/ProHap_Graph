@@ -4,9 +4,15 @@ configfile: "config.yaml"
 Ensembl_FTP_URL = "ftp.ensembl.org/pub/release-" + str(config['ensembl_release']) + "/"
 annotationFilename = "Homo_sapiens.GRCh38." + str(config['ensembl_release']) + ".chr_patch_hapl_scaff"
 
+sample_names_file = open(config['rawfile_list'], 'r')
+lines = sample_names_file.readlines()
+sample_names_file.close()
+SAMPLES = [l[:-1] for l in lines[:]]
+
 rule all:
     input:
-        "flag_baseDB_ready"
+        base="flag_baseDB_ready",
+        psms=expand("tmp/{sample}_added", sample=SAMPLES)
 
 rule download_reference_proteome:
     output:
@@ -77,3 +83,49 @@ rule build_database_graph:
     shell:
         "python src/build_neo4j_graph.py -hap_fa {input.haplo_fasta} -ref_fa {input.ref_fasta} -cdna_fa {input.cdna_fasta} -hap_db {input.haplo_table} -annot_db {input.annot} -tr_id {input.tr_ids} -g_id {input.gene_ids} -uri {params.uri} -usr {params.usr} -p {params.pwd} && touch {output}"
 
+rule fix_psm_report:
+    input:
+        psm=config['psm_location'] + "{sample}_full_PSM_export",
+        haplo_table=config['haplo_table'],
+        full_fasta=config['full_fasta'],
+        ref_fasta="data/fasta/ensembl_reference_proteinDB_" + str(config['ensembl_release']) + "_tagged.fa",
+        tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
+    output:
+        temp("tmp/{sample}_fixed_PSM_export")
+    params:
+        max_cores=config['max_cores']
+    threads: config['max_cores']
+    shell:
+        "python src/psm_fix_annotation_newDB.py -i {input.psm} -o {output} -hap_tsv {input.haplo_table} -ref_fa {input.ref_fasta} -f {input.full_fasta} -tr_id {input.tr_ids} -g_id {input.gene_ids} -t {params.max_cores} -log /dev/null"
+
+rule neo4j_add_psms:
+    input:
+        psm="tmp/{sample}_fixed_PSM_export",
+        mf=config['meta_file'],
+        haplo_table=config['haplo_table'],
+        tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+    output:
+        "tmp/{sample}_added"
+    params:
+        rawfile_col=config['rawfile_col'],
+        sample_col=config['sample_col'],
+        frag_col=config['frag_col'],
+        proteases_col=config['proteases_col'],
+        instrument_col=config['instrument_col'],
+        tissue_col=config['tissue_col'],
+        age_col=config['age_col'],
+        sex_col=config['sex_col'],
+        phenotype_col=config['phenotype_col'],
+        pride_acc=config['pride_acc'],
+        uri=config['neo4j_uri'],
+        usr=config['neo4j_username'],
+        pwd=config['neo4j_pwd']
+    conda: "condaenv.yaml"
+    shell:
+        "mkdir -p tmp ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table}  -rawfile_id {wildcards.sample} -mf {input.meta_file} -tr_id {input.tr_ids} -g_id {input.gene_ids} "
+        "-sample_id {params.sample_col} -ID_col {params.rawfile_col} -frag_col {params.frag_col} -prot_col {params.proteases_col} -instr_col {params.instrument_col} -tissue_col {params.tissue_col}"
+        "-age_col {params.age_col} -sex_col {params.sex_col} -pheno_col {params.phenotype_col} -pride_acc {params.pride_acc}"
+        "-uri {params.uri} -usr {params.usr} -p {params.pwd} && touch {output}"
+    

@@ -79,11 +79,12 @@ class Neo4jCommands:
         command_str += 'splice_sites_affected: \'-\' })'
         return command_str
 
-    def create_peptide_command(pep_id, sequence, class_1, class_2):
+    def create_peptide_command(pep_id, sequence, class_1, class_2, freq):
         command_str = '(' + pep_id + ':Peptide {'
         command_str += 'id: \'' + pep_id + '\', '
         command_str += 'length: ' + str(len(sequence)) + ', '
         command_str += 'sequence: \'' + sequence + '\', '
+        command_str += 'expected_max_freq: \'' + freq + '\', '
         command_str += 'pep_class_1: \'' + class_1 + '\', '
         command_str += 'pep_class_2: \'' + class_2 + '\' })'
         return command_str
@@ -101,11 +102,12 @@ class Neo4jCommands:
         command_str += 'precursor_intensity: ' + str(precursor_intens) + ' })'
         return command_str
 
-    def create_sample_command(sample_id, pride_id, tissue, age, sex):
+    def create_sample_command(sample_id, pride_id, tissue, age, sex, phenotype):
         command_str = '(' + sample_id + ':Sample {'
         command_str += 'id: \'' + sample_id + '\', '
         command_str += 'pride_project_accession: \'' + pride_id + '\', '
         command_str += 'tissue_name: \'' + tissue + '\', '
+        command_str += 'phenotype: \'' + phenotype + '\', '
         command_str += 'individual_age: \'' + str(age) + '\', '
         command_str += 'individual_sex: \'' + sex + '\' })'
         return command_str

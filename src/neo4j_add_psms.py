@@ -1,6 +1,6 @@
 import argparse
 import pandas as pd
-import requests
+import time
 from neo4j import GraphDatabase
 from neo4j_commands import Neo4jCommands
 
@@ -10,19 +10,25 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-psm", dest="psm_file", required=True,
                     help="PSM CSV file")
 
-parser.add_argument("-qval_col", dest="qval_column", required=True,
-                    help="q-value column name in the PSM table")
+parser.add_argument("-rawfile_id", dest="rawfile_id", required=False,
+                    help="Rawfile name in case results are not concatenated (skip otherwise)", default=None)
+
+parser.add_argument("-qval_col", dest="qval_column", required=False,
+                    help="q-value column name in the PSM table", default="q-value")
 
 parser.add_argument("-qval_thr", dest="qval_threshold", required=False, type=int,
                     help="maximum acceptable q-value, default: 0.01", default=0.01)
 
 parser.add_argument("-mf", dest="metadata_file", required=True,
                     help="sample metadata CSV file")
+
+parser.add_argument("-g_id", dest="gene_ids", required=True,
+                    help="csv file mapping transcript IDs to gene IDs")
                 
 parser.add_argument("-tr_id", dest="transcript_ids", required=True,
                     help="csv file mapping protein IDs to transcript IDs")
 
-parser.add_argument("-hap_csv", dest="haplo_tsv", required=True,
+parser.add_argument("-hap_tsv", dest="haplo_tsv", required=True,
                     help="haplotypes TSV file")
 
 parser.add_argument("-frag_col", dest="frag_column", required=True,
@@ -46,6 +52,9 @@ parser.add_argument("-age_col", dest="age_column", required=False,
 parser.add_argument("-sex_col", dest="sex_column", required=False,
                     help="donor sex column in metadata")           
 
+parser.add_argument("-pheno_col", dest="phenotype_column", required=False,
+                    help="donor phenotype / disease column in metadata")        
+
 parser.add_argument("-sample_id", dest="sample_id_column", required=True,
                     help="sample or experiment ID column in metadata")      
 
@@ -68,12 +77,17 @@ psm_df = pd.read_csv(args.psm_file, header=0)
 psm_df = psm_df[psm_df[args.qval_column] <= args.qval_threshold]
 
 print ("Reading", args.metadata_file)
-meta_df = pd.read_csv(args.metadata_file, header=0)
+meta_df = pd.read_csv(args.metadata_file, header=0, sep='\t')
 meta_df.set_index(args.ID_column, inplace=True)
+
+print ("Reading", args.gene_ids)
+gene_id_df = pd.read_csv(args.gene_ids, header=0)
+all_transcript_ids = gene_id_df['TranscriptID'].tolist()
 
 print ("Reading", args.transcript_ids)
 tr_id_df = pd.read_csv(args.transcript_ids, header=0)
 tr_id_df['TranscriptID'] = tr_id_df['TranscriptID'].apply(lambda x: x.split('.',1)[0])
+#tr_id_df = tr_id_df[tr_id_df["TranscriptID"].isin(all_transcript_ids)]
 tr_id_df.set_index('ProteinID', inplace=True)
 
 print ("Reading", args.haplo_tsv)
@@ -88,15 +102,14 @@ peptide_match_commands = {}
 spectrum_match_commands = {}
 sample_match_commands = {}
 
-psms_log_file = open('tmp/psms_added.log', 'w')
+#psms_log_file = open('tmp/psms_added.log', 'w')
 psm_processed_count = 0
 total_psm_count = len(psm_df)
-
 
 print ('Adding', total_psm_count, 'PSMs')
 
 for index,psm_row in psm_df.iterrows():
-    rawfile_ID = psm_row['rawfile_ID']
+    rawfile_ID = args.rawfile_id if args.rawfile_id is not None else psm_row['rawfile_ID']
     peptide_seq = psm_row['Sequence']
     peptide_hash = 'pep_' + hex(hash(peptide_seq))[2:]
 
@@ -108,7 +121,7 @@ for index,psm_row in psm_df.iterrows():
 
     # create or match peptide
     if peptide_hash not in peptide_match_commands:
-        query_str = "CREATE " + Neo4jCommands.create_peptide_command(peptide_hash, peptide_seq, psm_row['psm_type1'], psm_row['psm_type2'])
+        query_str = "CREATE " + Neo4jCommands.create_peptide_command(peptide_hash, peptide_seq, psm_row['psm_type1'], psm_row['psm_type2'], psm_row['expected_maximum_frequency'])
         peptide_match_commands[peptide_hash] = 'MATCH (' + peptide_hash + ':Peptide {id:\'' + peptide_hash + '\'})'
 
         matching_proteins = psm_row['matching_proteins'].split(';')
@@ -116,24 +129,33 @@ for index,psm_row in psm_df.iterrows():
         protein_positions = psm_row['positions_in_proteins'].split(';')
 
         canonical_transcripts = [ tr_id_df.loc[prot_name]['TranscriptID'] for prot_name in matching_proteins if prot_name.startswith('ENSP') ]
+        matched_protein = False
 
         for i,prot_name in enumerate(matching_proteins):
             
             if prot_name.startswith('haplo'):
                 # Check if there is a canonical match to a protein product of this transcript. If so - don't create an edge to the haplotypes for efficiency
                 trID = haplo_df.loc[prot_name]['TranscriptID']
-                if (trID in canonical_transcripts):
+                if ((trID not in all_transcript_ids) or (trID in canonical_transcripts)):
                     continue
 
                 protID = prot_name + '_rf' + matching_RFs[i]
             else:
+                trID = tr_id_df.loc[prot_name]['TranscriptID']
+                if (trID not in all_transcript_ids):
+                    continue
                 protID = prot_name.replace('.', '_')
 
             query_str = 'MATCH (' + protID + ':Proteoform {id: \'' + protID + '\'}) ' + query_str
 
             query_str += ', (' + peptide_hash + ')-[:MAPS_TO {position: ' + protein_positions[i] + '}]->(' + protID + ')'
+            matched_protein = True
     else:
         query_str = peptide_match_commands[peptide_hash] + ' '
+
+    if not (matched_protein):
+        psm_processed_count += 1
+        continue
 
     # create or match spectrum
     spectrum_hash = 'spec_' + hex(hash(rawfile_ID + psm_row['SpectrumTitle']))[2:]
@@ -142,15 +164,13 @@ for index,psm_row in psm_df.iterrows():
         # get metadata
         metadata_row = meta_df.loc[rawfile_ID]
 
-        frag_tech = metadata_row[args.frag_column]
-        proteases = metadata_row[args.proteases_column]
-        instrument = metadata_row[args.instrument_column]
-        indiv_age = metadata_row[args.age_column]
-        if (args.sex_column):
-            indiv_sex = metadata_row[args.sex_column]
-        else:
-            indiv_sex = '-'
-        tissue_name = metadata_row[args.tissue_column]
+        frag_tech = metadata_row[args.frag_column] if args.frag_column != "_" else "-"
+        proteases = metadata_row[args.proteases_column] if args.proteases_column != "_" else "-"
+        instrument = metadata_row[args.instrument_column] if args.instrument_column != "_" else "-"
+        indiv_age = metadata_row[args.age_column] if args.age_column != "_" else "-"
+        indiv_sex = metadata_row[args.sex_column] if args.sex_column != "_" else "-"
+        tissue_name = metadata_row[args.tissue_column] if args.tissue_column != "_" else "-"
+        phenotype = metadata_row[args.phenotype_column] if args.phenotype_column != "_" else "-"
         sample_ID = metadata_row[args.sample_id_column]
 
         if 'CREATE' in query_str:
@@ -163,24 +183,26 @@ for index,psm_row in psm_df.iterrows():
 
         # create or match sample
         if sample_ID not in sample_match_commands:
-            query_str += ', ' + Neo4jCommands.create_sample_command(sample_ID, args.pride_accession, tissue_name, indiv_age, indiv_sex)
+            query_str += ', ' + Neo4jCommands.create_sample_command(sample_ID, args.pride_accession, tissue_name, indiv_age, indiv_sex, phenotype)
             sample_match_commands[sample_ID] = 'MATCH (' + sample_ID + ':Sample {id:\'' + sample_ID + '\'})'
         else:
             query_str = sample_match_commands[sample_ID] + ' ' + query_str
 
         query_str += ', (' + spectrum_hash + ')-[:MEASURED_FROM]->(' + sample_ID + ')'
     else:
+        psm_processed_count += 1
         continue
         #query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
         #print ('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
 
     query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, peptide_hash, spectrum_hash)
     session.run(query_str)
-    psms_log_file.write(psm_row['PSMId'] + '\n')
+    time.sleep(0.75)
+    #psms_log_file.write(psm_row['PSMId'] + '\n')
     psm_processed_count += 1
     print('Processed:', psm_processed_count, '/', total_psm_count, end='\r')
 
-psms_log_file.close()
+#psms_log_file.close()
 
 # Create index on peptide sequence for faster search and close session
 #session.run('CREATE TEXT INDEX pep_seq_index FOR (n:Peptide) ON (n.sequence)')
