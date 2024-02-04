@@ -115,6 +115,8 @@ peps_file = open(args.added_peps, 'a')
 psm_processed_count = 0
 total_psm_count = len(psm_df)
 
+PSM_features_to_add = ['rt_Abs_error', 'rt_apex_dist', 'spectra_cos_similarity', 'spectra_angular_similarity', 'posterior_error_prob', 'q-value']
+
 print ('Adding', total_psm_count, 'PSMs')
 
 for index,psm_row in psm_df.iterrows():
@@ -200,11 +202,12 @@ for index,psm_row in psm_df.iterrows():
         query_str += ', (' + spectrum_hash + ')-[:MEASURED_FROM]->(' + sample_ID + ')'
     else:
         psm_processed_count += 1
-        continue
         #query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
-        #print ('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
+        print('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
+        print()
+        continue
 
-    query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash)
+    query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['PSMId'], PSM_features_to_add)
     session.run(query_str)
     time.sleep(0.75)
     psm_processed_count += 1

@@ -112,16 +112,10 @@ class Neo4jCommands:
         command_str += 'individual_sex: \'' + sex + '\' })'
         return command_str
 
-    def connect_peptide_spectrum_command(psm_row, pep_id, spec_id):
+    def connect_peptide_spectrum_command(psm_row, pep_id, spec_id, psm_id, features):
         command_str = "(" + pep_id + ')-[:MATCHED_TO {'
-        command_str += 'id: \'' + psm_row['PSMId'] + '\', '
-        command_str += 'benchmark_aggreg_posterior_error_prob: ' + str(psm_row['benchmark_aggreg_posterior_error_prob']) + ', '
-        #command_str += 'extra_features_aggreg_posterior_error_prob: ' + str(psm_row['extra_features_aggreg_posterior_error_prob']) + ', '
-        command_str += 'benchmark_aggreg_q_value: ' + str(psm_row['benchmark_aggreg_q-value']) + ', '
-        #command_str += 'extra_features_aggreg_q_value: ' + str(psm_row['extra_features_aggreg_q-value']) + ', '
-        command_str += 'rt_abs_error: ' + str(psm_row['rt_Abs_error']) + ', '
-        command_str += 'spectra_cos_similarity: ' + str(psm_row['spectra_cos_similarity']) + ', '
-        command_str += 'spectra_angular_similarity: ' + str(psm_row['spectra_angular_similarity']) + '}'
+        command_str += 'id: \'' + psm_id + '\', '
+        command_str += ', '.join([ (feature.replace('-', '_') + ': ' + str(psm_row[feature])) for feature in features ]) + '}'
         command_str += ']->(' + spec_id + ')'
         return command_str
 
