@@ -22,6 +22,9 @@ parser.add_argument("-qval_thr", dest="qval_threshold", required=False, type=int
 parser.add_argument("-mf", dest="metadata_file", required=True,
                     help="sample metadata CSV file")
 
+parser.add_argument("-added_peps", dest="added_peps", required=True,
+                    help="file containing peptide sequences that are already added")
+
 parser.add_argument("-g_id", dest="gene_ids", required=True,
                     help="csv file mapping transcript IDs to gene IDs")
                 
@@ -102,7 +105,13 @@ peptide_match_commands = {}
 spectrum_match_commands = {}
 sample_match_commands = {}
 
-#psms_log_file = open('tmp/psms_added.log', 'w')
+peps_file = open(args.added_peps, 'r')
+added_peptides = peps_file.readlines()
+peps_file.close()
+for pep in added_peptides:
+    peptide_match_commands[pep[:-1]] = 'MATCH (pep_' + pep[:-1] + ':Peptide {id:\'pep_' + pep[:-1] + '\'})'
+
+peps_file = open(args.added_peps, 'a')
 psm_processed_count = 0
 total_psm_count = len(psm_df)
 
@@ -111,7 +120,6 @@ print ('Adding', total_psm_count, 'PSMs')
 for index,psm_row in psm_df.iterrows():
     rawfile_ID = args.rawfile_id if args.rawfile_id is not None else psm_row['rawfile_ID']
     peptide_seq = psm_row['Sequence']
-    peptide_hash = 'pep_' + hex(hash(peptide_seq))[2:]
 
     query_str = ""
 
@@ -120,9 +128,10 @@ for index,psm_row in psm_df.iterrows():
         continue
 
     # create or match peptide
-    if peptide_hash not in peptide_match_commands:
-        query_str = "CREATE " + Neo4jCommands.create_peptide_command(peptide_hash, peptide_seq, psm_row['psm_type1'], psm_row['psm_type2'], psm_row['expected_maximum_frequency'])
-        peptide_match_commands[peptide_hash] = 'MATCH (' + peptide_hash + ':Peptide {id:\'' + peptide_hash + '\'})'
+    if peptide_seq not in peptide_match_commands:
+        query_str = "CREATE " + Neo4jCommands.create_peptide_command('pep_'+peptide_seq, peptide_seq, psm_row['psm_type1'], psm_row['psm_type2'], psm_row['expected_maximum_frequency'])
+        peps_file.write(peptide_seq + '\n')
+        peptide_match_commands[peptide_seq] = 'MATCH (pep_' + peptide_seq + ':Peptide {id:\'pep_' + peptide_seq + '\'})'
 
         matching_proteins = psm_row['matching_proteins'].split(';')
         matching_RFs = psm_row['reading_frames'].split(';')
@@ -148,10 +157,10 @@ for index,psm_row in psm_df.iterrows():
 
             query_str = 'MATCH (' + protID + ':Proteoform {id: \'' + protID + '\'}) ' + query_str
 
-            query_str += ', (' + peptide_hash + ')-[:MAPS_TO {position: ' + protein_positions[i] + '}]->(' + protID + ')'
+            query_str += ', (pep_' + peptide_seq + ')-[:MAPS_TO {position: ' + protein_positions[i] + '}]->(' + protID + ')'
             matched_protein = True
     else:
-        query_str = peptide_match_commands[peptide_hash] + ' '
+        query_str = peptide_match_commands[peptide_seq] + ' '
 
     if not (matched_protein):
         psm_processed_count += 1
@@ -195,14 +204,13 @@ for index,psm_row in psm_df.iterrows():
         #query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
         #print ('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
 
-    query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, peptide_hash, spectrum_hash)
+    query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash)
     session.run(query_str)
     time.sleep(0.75)
-    #psms_log_file.write(psm_row['PSMId'] + '\n')
     psm_processed_count += 1
     print('Processed:', psm_processed_count, '/', total_psm_count, end='\r')
 
-#psms_log_file.close()
+peps_file.close()
 
 # Create index on peptide sequence for faster search and close session
 #session.run('CREATE TEXT INDEX pep_seq_index FOR (n:Peptide) ON (n.sequence)')
