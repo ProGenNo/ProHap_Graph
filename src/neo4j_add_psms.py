@@ -128,6 +128,8 @@ for index,psm_row in psm_df.iterrows():
     if (psm_row['psm_type1'] == 'decoy') or (psm_row['psm_type1'] == 'contaminant'):
         psm_processed_count += 1
         continue
+    
+    matched_protein = False
 
     # create or match peptide
     if peptide_seq not in peptide_match_commands:
@@ -140,7 +142,6 @@ for index,psm_row in psm_df.iterrows():
         protein_positions = psm_row['positions_in_proteins'].split(';')
 
         canonical_transcripts = [ tr_id_df.loc[prot_name]['TranscriptID'] for prot_name in matching_proteins if prot_name.startswith('ENSP') ]
-        matched_protein = False
 
         for i,prot_name in enumerate(matching_proteins):
             
