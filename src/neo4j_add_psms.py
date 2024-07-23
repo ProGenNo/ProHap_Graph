@@ -16,7 +16,7 @@ parser.add_argument("-rawfile_id", dest="rawfile_id", required=False,
 parser.add_argument("-qval_col", dest="qval_column", required=False,
                     help="q-value column name in the PSM table", default="q-value")
 
-parser.add_argument("-qval_thr", dest="qval_threshold", required=False, type=int,
+parser.add_argument("-qval_thr", dest="qval_threshold", required=False, type=float,
                     help="maximum acceptable q-value, default: 0.01", default=0.01)
 
 parser.add_argument("-mf", dest="metadata_file", required=True,
@@ -78,6 +78,7 @@ args = parser.parse_args()
 print ("Reading", args.psm_file)
 psm_df = pd.read_csv(args.psm_file, header=0)
 psm_df = psm_df[psm_df[args.qval_column] <= args.qval_threshold]
+psm_df['USI'] = psm_df['USI'].apply(lambda x: '\'' + x + '\'')
 
 print ("Reading", args.metadata_file)
 meta_df = pd.read_csv(args.metadata_file, header=0, sep='\t')
@@ -106,7 +107,7 @@ spectrum_match_commands = {}
 sample_match_commands = {}
 
 peps_file = open(args.added_peps, 'r')
-added_peptides = peps_file.readlines()
+added_peptides = [ l for l in peps_file.readlines() if (len(l) > 1)]
 peps_file.close()
 for pep in added_peptides:
     peptide_match_commands[pep[:-1]] = 'MATCH (pep_' + pep[:-1] + ':Peptide {id:\'pep_' + pep[:-1] + '\'})'
@@ -115,13 +116,17 @@ peps_file = open(args.added_peps, 'a')
 psm_processed_count = 0
 total_psm_count = len(psm_df)
 
-PSM_features_to_add = ['rt_Abs_error', 'rt_apex_dist', 'spectra_cos_similarity', 'spectra_angular_similarity', 'posterior_error_prob', 'q-value']
+#PSM_features_to_add = ['rt_Abs_error', 'rt_apex_dist', 'spectra_cos_similarity', 'spectra_angular_similarity', 'posterior_error_prob', 'q-value']
+PSM_features_to_add = ['posterior_error_prob', 'q-value', 'USI']
 
 print ('Adding', total_psm_count, 'PSMs')
 
+if (len(added_peptides) == 0):
+    session.run('CREATE TEXT INDEX pep_seq_index FOR (n:Peptide) ON (n.sequence)')
+
 for index,psm_row in psm_df.iterrows():
     rawfile_ID = args.rawfile_id if args.rawfile_id is not None else psm_row['rawfile_ID']
-    peptide_seq = psm_row['Sequence']
+    peptide_seq = psm_row['sequence']
 
     query_str = ""
 
@@ -134,8 +139,6 @@ for index,psm_row in psm_df.iterrows():
     # create or match peptide
     if peptide_seq not in peptide_match_commands:
         query_str = "CREATE " + Neo4jCommands.create_peptide_command('pep_'+peptide_seq, peptide_seq, psm_row['psm_type1'], psm_row['psm_type2'], psm_row['expected_maximum_frequency'])
-        peps_file.write(peptide_seq + '\n')
-        peptide_match_commands[peptide_seq] = 'MATCH (pep_' + peptide_seq + ':Peptide {id:\'pep_' + peptide_seq + '\'})'
 
         matching_proteins = psm_row['matching_proteins'].split(';')
         matching_RFs = psm_row['reading_frames'].split(';')
@@ -162,8 +165,14 @@ for index,psm_row in psm_df.iterrows():
 
             query_str += ', (pep_' + peptide_seq + ')-[:MAPS_TO {position: ' + protein_positions[i] + '}]->(' + protID + ')'
             matched_protein = True
+
+        if (matched_protein):            
+            peptide_match_commands[peptide_seq] = 'MATCH (pep_' + peptide_seq + ':Peptide {id:\'pep_' + peptide_seq + '\'})'       
+            peps_file.write(peptide_seq + '\n')
+
     else:
         query_str = peptide_match_commands[peptide_seq] + ' '
+        matched_protein = True
 
     if not (matched_protein):
         psm_processed_count += 1
@@ -203,10 +212,10 @@ for index,psm_row in psm_df.iterrows():
         query_str += ', (' + spectrum_hash + ')-[:MEASURED_FROM]->(' + sample_ID + ')'
     else:
         psm_processed_count += 1
-        #query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
+        query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
         print('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
         print()
-        continue
+        #continue
 
     query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['PSMId'], PSM_features_to_add)
     session.run(query_str)
