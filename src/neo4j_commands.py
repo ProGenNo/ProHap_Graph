@@ -49,6 +49,7 @@ class Neo4jCommands:
         command_str = '(' + changeIDsafe + ':Variant {'
         command_str += 'id: \'' + changeID + '\', '
         command_str += 'location: ' + changeID.split(':',2)[1] + ', '
+        command_str += 'overlapping_peptide: FALSE, '
         command_str += 'ref: \'' + changeID.split(':', 2)[2].split('>',1)[0] + '\', '
         command_str += 'alt: \'' + changeID.split('>',1)[1] + '\' })'
         return command_str

@@ -117,12 +117,20 @@ psm_processed_count = 0
 total_psm_count = len(psm_df)
 
 #PSM_features_to_add = ['rt_Abs_error', 'rt_apex_dist', 'spectra_cos_similarity', 'spectra_angular_similarity', 'posterior_error_prob', 'q-value']
-PSM_features_to_add = ['posterior_error_prob', 'q-value', 'USI']
+PSM_features_to_add = ['posterior_error_probability', 'q-value', 'USI']
 
 print ('Adding', total_psm_count, 'PSMs')
 
 if (len(added_peptides) == 0):
-    session.run('CREATE TEXT INDEX pep_seq_index FOR (n:Peptide) ON (n.sequence)')
+    try:
+        session.run('CREATE TEXT INDEX pep_seq_index FOR (n:Peptide) ON (n.sequence)')
+    except:
+        print('Could not create index on peptide sequence - most likely already exists')
+
+    try:
+        session.run('CREATE TEXT INDEX pep_seq_index FOR (n:Peptide) ON (n.id)')
+    except:
+        print('Could not create index on peptide ID - most likely already exists')
 
 for index,psm_row in psm_df.iterrows():
     rawfile_ID = args.rawfile_id if args.rawfile_id is not None else psm_row['rawfile_ID']
@@ -166,7 +174,14 @@ for index,psm_row in psm_df.iterrows():
             query_str += ', (pep_' + peptide_seq + ')-[:MAPS_TO {position: ' + protein_positions[i] + '}]->(' + protID + ')'
             matched_protein = True
 
-        if (matched_protein):            
+        if (matched_protein):     
+
+            # in case of variant peptides - flag the variant as matched
+            if ('variant' in psm_row['psm_type1']):
+                for varID in psm_row['covered_alleles_dna'].split(';'):
+                    if ('>' in varID):
+                        query_str = 'MATCH (var_' + varID + ':Variant {id:\'' + varID + '\'}) SET var_' + varID + '.overlapping_peptide = TRUE ' + query_str
+
             peptide_match_commands[peptide_seq] = 'MATCH (pep_' + peptide_seq + ':Peptide {id:\'pep_' + peptide_seq + '\'})'       
             peps_file.write(peptide_seq + '\n')
 
@@ -199,7 +214,8 @@ for index,psm_row in psm_df.iterrows():
         else: 
             query_str += 'CREATE '
 
-        query_str += Neo4jCommands.create_spectrum_command(spectrum_hash, psm_row['SpectrumTitle'], frag_tech, proteases, instrument, rawfile_ID, psm_row['measured_mz'], -1, psm_row['measured_rt'])
+        #query_str += Neo4jCommands.create_spectrum_command(spectrum_hash, psm_row['SpectrumTitle'], frag_tech, proteases, instrument, rawfile_ID, psm_row['measured_mz'], -1, psm_row['measured_rt'])
+        query_str += Neo4jCommands.create_spectrum_command(spectrum_hash, psm_row['SpectrumTitle'], frag_tech, proteases, instrument, rawfile_ID, -1, -1, -1)
         spectrum_match_commands[spectrum_hash] = 'MATCH (' + spectrum_hash + ':Spectrum {id:\'' + spectrum_hash + '\'})'
 
         # create or match sample
@@ -212,14 +228,14 @@ for index,psm_row in psm_df.iterrows():
         query_str += ', (' + spectrum_hash + ')-[:MEASURED_FROM]->(' + sample_ID + ')'
     else:
         psm_processed_count += 1
-        query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
+        # query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
         print('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
         print()
         #continue
 
-    query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['PSMId'], PSM_features_to_add)
+    query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['ID'], PSM_features_to_add)
     session.run(query_str)
-    time.sleep(0.75)
+    time.sleep(1)
     psm_processed_count += 1
     print('Processed:', psm_processed_count, '/', total_psm_count, end='\r')
 
