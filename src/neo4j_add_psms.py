@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import time
+import re
 from neo4j import GraphDatabase
 from neo4j_commands import Neo4jCommands
 
@@ -178,9 +179,10 @@ for index,psm_row in psm_df.iterrows():
 
             # in case of variant peptides - flag the variant as matched
             if ('variant' in psm_row['psm_type1']):
-                for varID in psm_row['covered_alleles_dna'].split(';'):
+                for varID in re.split(r"[,;|]", psm_row['covered_alleles_dna']):
                     if ('>' in varID):
-                        query_str = 'MATCH (var_' + varID + ':Variant {id:\'' + varID + '\'}) SET var_' + varID + '.overlapping_peptide = TRUE ' + query_str
+                        varID_safe = varID.replace(':', '_').replace('>', 'x')
+                        query_str = 'MATCH (var_' + varID_safe + ':Variant {id:\'' + varID + '\'}) SET var_' + varID_safe + '.overlapping_peptide = TRUE ' + query_str
 
             peptide_match_commands[peptide_seq] = 'MATCH (pep_' + peptide_seq + ':Peptide {id:\'pep_' + peptide_seq + '\'})'       
             peps_file.write(peptide_seq + '\n')
