@@ -138,6 +138,7 @@ for index,psm_row in psm_df.iterrows():
     peptide_seq = psm_row['sequence']
 
     query_str = ""
+    set_query_str = ""  # separate query to set variant properties
 
     if (psm_row['psm_type1'] == 'decoy') or (psm_row['psm_type1'] == 'contaminant'):
         psm_processed_count += 1
@@ -182,7 +183,7 @@ for index,psm_row in psm_df.iterrows():
                 for varID in re.split(r"[,;|]", psm_row['covered_alleles_dna']):
                     if ('>' in varID):
                         varID_safe = varID.replace(':', '_').replace('>', 'x')
-                        query_str = 'MATCH (var_' + varID_safe + ':Variant {id:\'' + varID + '\'}) SET var_' + varID_safe + '.overlapping_peptide = TRUE ' + query_str
+                        set_query_str = 'MATCH (var_' + varID_safe + ':Variant {id:\'' + varID + '\'}) SET var_' + varID_safe + '.overlapping_peptide = TRUE'
 
             peptide_match_commands[peptide_seq] = 'MATCH (pep_' + peptide_seq + ':Peptide {id:\'pep_' + peptide_seq + '\'})'       
             peps_file.write(peptide_seq + '\n')
@@ -238,6 +239,11 @@ for index,psm_row in psm_df.iterrows():
     query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['ID'], PSM_features_to_add)
     session.run(query_str)
     time.sleep(1)
+
+    if (len(set_query_str) > 0):
+        session.run(set_query_str)
+        time.sleep(0.5)
+
     psm_processed_count += 1
     print('Processed:', psm_processed_count, '/', total_psm_count, end='\r')
 
