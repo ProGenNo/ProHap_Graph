@@ -237,12 +237,22 @@ for index,psm_row in psm_df.iterrows():
         #continue
 
     query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['ID'], PSM_features_to_add)
-    session.run(query_str)
-    time.sleep(1)
+    try:
+        session.run(query_str)
+        time.sleep(1)
+    except:
+        time.sleep(2)
+        session.run(query_str)
+        time.sleep(2)
 
     if (len(set_query_str) > 0):
-        session.run(set_query_str)
-        time.sleep(0.5)
+        try:
+            session.run(set_query_str)
+            time.sleep(0.5)
+        except:
+            time.sleep(2)
+            session.run(set_query_str)
+            time.sleep(2)
 
     psm_processed_count += 1
     print('Processed:', psm_processed_count, '/', total_psm_count, end='\r')
