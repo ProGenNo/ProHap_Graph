@@ -234,7 +234,7 @@ for index,psm_row in psm_df.iterrows():
         # query_str = spectrum_match_commands[spectrum_hash] + ' ' + query_str
         print('[Warning]: Spectrum', spectrum_hash, 'matched to multiple peptides!')
         print()
-        #continue
+        continue
 
     query_str += ', ' + Neo4jCommands.connect_peptide_spectrum_command(psm_row, 'pep_' + peptide_seq, spectrum_hash, psm_row['ID'], PSM_features_to_add)
     try:
