@@ -38,7 +38,7 @@ for i,gID in enumerate(all_gene_ids):
     time.sleep(0.7)
 
     if (len(query_response) > 0):
-        matched_variants = len([ elem for elem in query_response[0]['nodes'] if ('overlapping_peptide' in elem[0]) and (elem[0]['overlapping_peptide']) ])
+        matched_variants = len([ elem for elem in query_response[0]['nodes'] if ('overlapping_peptide' in elem) and (elem['overlapping_peptide']) ])
         total_proteoforms = len([ elem for elem in query_response[0]['node_types'] if elem[0] == 'Proteoform'])
         total_peptides = len([ elem for elem in query_response[0]['node_types'] if elem[0] == 'Peptide'])
         variant_peptides = len([ elem for elem in query_response[0]['nodes'] if ('pep_class_1' in elem) and (('variant' in elem['pep_class_1']) or ('frameshift' in elem['pep_class_1'])) ])
