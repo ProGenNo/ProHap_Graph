@@ -227,10 +227,10 @@ for prot_idx,fasta_elem in enumerate(haplo_proteins.values()):
 
             # connect variants to haplotype only if they haven't been connnected already
             if is_new_haplotype:
-                query_str += ', (' + haplo_hash + ')-[:INCLUDES_ALT_ALLELE {var_order: ' + str(i) + '}]->(' + change_id_safe + ')'
+                query_str += ', (' + haplo_hash + ')-[:INCLUDES_ALT_ALLELE {var_order: ' + str(i) + ', var_type: \"' + haplotype_row['variant_types'].split(';')[i] + '\"}]->(' + change_id_safe + ')'
 
         session.run(query_str)
-        time.sleep(0.75)
+        time.sleep(1)
     print('Processed:', prot_idx, '/', len(haplo_proteins), end='\r')
 
 print()
@@ -250,7 +250,7 @@ for i,fasta_elem in enumerate(ref_proteins.values()):
         query_str += ', (' + protID + ')-[:ENCODED_BY_TRANSCRIPT]->(' + transcriptID + ')'
 
         session.run(query_str)
-        time.sleep(0.75)
+        time.sleep(1)
 
     print('Processed:', i, '/', len(ref_proteins), end='\r')
 

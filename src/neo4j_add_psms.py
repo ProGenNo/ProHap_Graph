@@ -241,16 +241,16 @@ for index,psm_row in psm_df.iterrows():
         session.run(query_str)
         time.sleep(1)
     except:
-        time.sleep(2)
+        time.sleep(10)
         session.run(query_str)
-        time.sleep(2)
+        time.sleep(5)
 
     if (len(set_query_str) > 0):
         try:
             session.run(set_query_str)
-            time.sleep(0.5)
+            time.sleep(1)
         except:
-            time.sleep(2)
+            time.sleep(10)
             session.run(set_query_str)
             time.sleep(2)
 

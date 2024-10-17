@@ -101,7 +101,7 @@ rule fix_psm_report:
 
 rule neo4j_add_psms:
     input:
-        psm="tmp/{sample}_fixed_PSM_export",
+        psm="{sample}.csv",
         mf=config['meta_file'],
         haplo_table=config['haplo_table'],
         tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
@@ -109,7 +109,8 @@ rule neo4j_add_psms:
     output:
         "tmp/{sample}_added"
     params:
-        added_peps='tmp/already_added_peptides.txt'
+        added_peps='tmp/already_added_peptides.txt',
+        qval_thr=config['qval_thr'],
         rawfile_col=config['rawfile_col'],
         sample_col=config['sample_col'],
         frag_col=config['frag_col'],
@@ -124,9 +125,10 @@ rule neo4j_add_psms:
         usr=config['neo4j_username'],
         pwd=config['neo4j_pwd']
     conda: "condaenv.yaml"
+    threads: 20
     shell:
-        "touch {params.added_peps} ; mkdir -p tmp ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table}  -rawfile_id {wildcards.sample} -mf {input.meta_file} -tr_id {input.tr_ids} -g_id {input.gene_ids} "
-        "-sample_id {params.sample_col} -ID_col {params.rawfile_col} -frag_col {params.frag_col} -prot_col {params.proteases_col} -instr_col {params.instrument_col} -tissue_col {params.tissue_col}"
-        "-age_col {params.age_col} -sex_col {params.sex_col} -pheno_col {params.phenotype_col} -pride_acc {params.pride_acc} -added_peps {params.added_peps}"
-        "-uri {params.uri} -usr {params.usr} -p {params.pwd} && touch {output}"
+        "mkdir -p tmp ; touch {params.added_peps} ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table} -mf {input.mf} -tr_id {input.tr_ids} -g_id {input.gene_ids} -qval_thr 0.00005 "
+        "-sample_id {params.sample_col} -ID_col {params.rawfile_col} -frag_col {params.frag_col} -prot_col {params.proteases_col} -instr_col {params.instrument_col} -tissue_col {params.tissue_col} "
+        "-age_col {params.age_col} -sex_col {params.sex_col} -pheno_col {params.phenotype_col} -pride_acc {params.pride_acc} -added_peps {params.added_peps} "
+        "-uri {params.uri} -usr {params.usr} -pwd {params.pwd} && touch {output}"
     
