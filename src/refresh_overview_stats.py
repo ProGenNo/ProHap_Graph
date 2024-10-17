@@ -35,10 +35,9 @@ for i,gID in enumerate(all_gene_ids):
     query_str = 'MATCH (g:Gene {id: \'' + gID + '\'}) '
     query_str += "CALL apoc.path.subgraphAll(g, {relationshipFilter:'<TRANSCRIPT_OF|<EXON_PART_OF|<VARIANT_MAPS_TO|<INCLUDES_ALT_ALLELE|INCLUDES_EXON>|HAPLO_FORM_OF|<ENCODED_BY_TRANSCRIPT|<ENCODED_BY_HAPLOTYPE|<MAPS_TO'}) YIELD nodes RETURN nodes, [ v in nodes | labels(v) ] as node_types;"
     query_response = session.run(query_str).data()
+    time.sleep(0.7)
 
     if (len(query_response) > 0):
-        time.sleep(0.7)
-
         matched_variants = len([ elem for elem in query_response[0]['nodes'] if ('overlapping_peptide' in elem[0]) and (elem[0]['overlapping_peptide']) ])
         total_proteoforms = len([ elem for elem in query_response[0]['node_types'] if elem[0] == 'Proteoform'])
         total_peptides = len([ elem for elem in query_response[0]['node_types'] if elem[0] == 'Peptide'])
@@ -51,9 +50,8 @@ for i,gID in enumerate(all_gene_ids):
         query_str += " SET g.total_peptides = " + str(total_peptides) 
         query_str += " SET g.variant_peptides = " + str(variant_peptides) 
         session.run(query_str)
-        
-    time.sleep(0.7)
-    print('Processed:', i, '/', len(all_gene_ids), end='\r')
+        print('Processed:', i, '/', len(all_gene_ids), end='\r')
+        time.sleep(0.7)
     
 
 session.close()
