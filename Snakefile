@@ -12,7 +12,8 @@ SAMPLES = [l[:-1] for l in lines[:]]
 rule all:
     input:
         base="flag_baseDB_ready",
-        psms=expand("tmp/{sample}_added", sample=SAMPLES)
+        psms=expand("tmp/{sample}_added", sample=SAMPLES),
+        overview_stats="tmp/overview_stats"
 
 rule download_reference_proteome:
     output:
@@ -101,7 +102,7 @@ rule fix_psm_report:
 
 rule neo4j_add_psms:
     input:
-        psm="{sample}.csv",
+        psm="tmp/{sample}_fixed_PSM_export",
         mf=config['meta_file'],
         haplo_table=config['haplo_table'],
         tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
@@ -127,8 +128,22 @@ rule neo4j_add_psms:
     conda: "condaenv.yaml"
     threads: 20
     shell:
-        "mkdir -p tmp ; touch {params.added_peps} ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table} -mf {input.mf} -tr_id {input.tr_ids} -g_id {input.gene_ids} -qval_thr 0.00005 "
+        "mkdir -p tmp ; touch {params.added_peps} ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table} -mf {input.mf} -tr_id {input.tr_ids} -g_id {input.gene_ids} -qval_thr {params.qval_thr} "
         "-sample_id {params.sample_col} -ID_col {params.rawfile_col} -frag_col {params.frag_col} -prot_col {params.proteases_col} -instr_col {params.instrument_col} -tissue_col {params.tissue_col} "
         "-age_col {params.age_col} -sex_col {params.sex_col} -pheno_col {params.phenotype_col} -pride_acc {params.pride_acc} -added_peps {params.added_peps} "
         "-uri {params.uri} -usr {params.usr} -pwd {params.pwd} && touch {output}"
     
+rule get_overview_stats:
+    input:
+        psms=expand("tmp/{sample}_added", sample=SAMPLES),
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+    output:
+        flag="tmp/overview_stats"
+    params:
+        uri=config['neo4j_uri'],
+        usr=config['neo4j_username'],
+        pwd=config['neo4j_pwd']
+    conda: "condaenv.yaml"
+    shell:
+        "python src/refresh_overview_stats.py -g_id {input.gene_ids} -uri {params.uri} -usr {params.usr} -pwd {params.pwd} && touch {output.flag}"
+
