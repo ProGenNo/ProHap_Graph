@@ -20,11 +20,6 @@ parser.add_argument("-pwd", dest="neo4j_pwd", required=True,
 
 args = parser.parse_args()
 
-print ("Reading", args.transcript_ids)
-tr_id_df = pd.read_csv(args.transcript_ids, header=0)
-all_transcript_ids = tr_id_df['TranscriptID'].apply(lambda x: x.split('.',1)[0]).drop_duplicates().tolist()
-tr_id_df.set_index('ProteinID', inplace=True)
-
 print ("Reading", args.gene_ids)
 gene_id_df = pd.read_csv(args.gene_ids, header=0)
 all_gene_ids = gene_id_df['GeneID'].drop_duplicates().tolist()
