@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import time
+import json
 from neo4j import GraphDatabase
 from neo4j_commands import Neo4jCommands
 from common import read_fasta
@@ -39,6 +40,18 @@ parser.add_argument("-usr", dest="neo4j_usr", required=True,
 parser.add_argument("-pwd", dest="neo4j_pwd", required=True,
                     help="the password for the neo4j instance")
 
+parser.add_argument("-hm_json", dest="hm_json", required=False, default="",
+                    help="haplotype match commands (JSON file)")
+
+parser.add_argument("-pfm_json", dest="pfm_json", required=False, default="",
+                    help="proteoform match commands (JSON file)")
+
+parser.add_argument("-vm_json", dest="vm_json", required=False, default="",
+                    help="variant match commands (JSON file)")
+
+parser.add_argument("-hte_json", dest="hte_json", required=False, default="",
+                    help="haplotype - transcript edges (JSON file)")
+
 args = parser.parse_args()
 
 print ('Reading', args.annotation_db)
@@ -48,7 +61,7 @@ annotations_db = gffutils.FeatureDB(args.annotation_db)
 print ("Reading", args.transcript_ids)
 tr_id_df = pd.read_csv(args.transcript_ids, header=0)
 all_transcript_ids = tr_id_df['TranscriptID'].apply(lambda x: x.split('.',1)[0]).drop_duplicates().tolist()
-tr_id_df.set_index('ProteinID', inplace=True)
+#tr_id_df.set_index('ProteinID', inplace=True)
 
 cDNA_sequences = read_fasta(args.cdna_fasta)
 
@@ -126,13 +139,29 @@ for i,geneID in enumerate(all_gene_ids[:]):
 
         session.run(query_str)
         print('Processed:', i, '/', len(all_gene_ids), end='\r')
-        time.sleep(1)
+        #time.sleep(1)
 
 # add the haplotypes and protein sequences
 haplotype_match_commands = {}
+if (len(args.hm_json) > 0):
+    with open(args.hm_json, 'r') as f:
+        haplotype_match_commands = json.load(f)
+
 haplotype_transcript_edges = {}
+if (len(args.hte_json) > 0):
+    with open(args.hte_json, 'r') as f:
+        haplotype_transcript_edges = json.load(f)
+
 proteoform_match_commands = {}
+if (len(args.pfm_json) > 0):
+    with open(args.pfm_json, 'r') as f:
+        proteoform_match_commands = json.load(f)
+
 variant_match_commands = {}
+if (len(args.vm_json) > 0):
+    with open(args.vm_json, 'r') as f:
+        variant_match_commands = json.load(f)
+
 skipped_haplotypes = 0
 
 print ()
@@ -219,26 +248,50 @@ for prot_idx,fasta_elem in enumerate(haplo_proteins.values()):
             if change_id_safe not in variant_match_commands:
                 query_str += ', ' + Neo4jCommands.create_variant_command(change_id, change_id_safe)
                 query_str += ', (' + change_id_safe + ')-[:VARIANT_MAPS_TO]->(' + geneID + ')'
-                variant_match_commands[change_id_safe] = 'MATCH (' + change_id_safe + ':Variant {id: \'' + change_id + '\'})'
+                variant_match_commands[change_id_safe] = {'command': 'MATCH (' + change_id_safe + ':Variant {id: \'' + change_id + '\'})', 'genes': [geneID] }
                 matched_variants.append(change_id_safe)
             
             elif change_id_safe not in matched_variants:
-                query_str = variant_match_commands[change_id_safe] + ' ' + query_str
+                query_str = variant_match_commands[change_id_safe]['command'] + ' ' + query_str
+
+                # sometimes, a variant can map to two overlapping genes
+                # in that case, the variant node exists, but might not be connected to this gene
+                # we have to check this and connect if necessary
+                if (geneID not in variant_match_commands[change_id_safe]['genes']):
+                    query_str += ', (' + change_id_safe + ')-[:VARIANT_MAPS_TO]->(' + geneID + ')'
+                    variant_match_commands[change_id_safe]['genes'].append(geneID)
 
             # connect variants to haplotype only if they haven't been connnected already
             if is_new_haplotype:
                 query_str += ', (' + haplo_hash + ')-[:INCLUDES_ALT_ALLELE {var_order: ' + str(i) + ', var_type: \"' + haplotype_row['variant_types'].split(';')[i] + '\"}]->(' + change_id_safe + ')'
 
         session.run(query_str)
-        time.sleep(1)
+        #time.sleep(1)
     print('Processed:', prot_idx, '/', len(haplo_proteins), end='\r')
+
+
+if (len(args.hm_json) > 0):
+    with open(args.hm_json, 'w') as f:
+        f.write(json.dumps(haplotype_match_commands))
+        
+if (len(args.hte_json) > 0):
+    with open(args.hte_json, 'w') as f:
+        f.write(json.dumps(haplotype_transcript_edges))
+
+if (len(args.pfm_json) > 0):
+    with open(args.pfm_json, 'w') as f:
+        f.write(json.dumps(proteoform_match_commands))
+
+if (len(args.vm_json) > 0):
+    with open(args.vm_json, 'w') as f:
+        f.write(json.dumps(variant_match_commands))
 
 print()
 print('Adding canonical proteins')
 
 ref_proteins = read_fasta(args.reference_fasta)
 for i,fasta_elem in enumerate(ref_proteins.values()):
-    protID = fasta_elem['accession'].replace('.', '_')
+    protID = 'prot_' + fasta_elem['accession'].replace('.', '_')
     transcriptID = fasta_elem['description'].split('transcript:',1)[1].split('.',1)[0]
 
     if (protID not in proteoform_match_commands) and (transcriptID in transcript_match_commands):
@@ -250,7 +303,7 @@ for i,fasta_elem in enumerate(ref_proteins.values()):
         query_str += ', (' + protID + ')-[:ENCODED_BY_TRANSCRIPT]->(' + transcriptID + ')'
 
         session.run(query_str)
-        time.sleep(1)
+        #time.sleep(1)
 
     print('Processed:', i, '/', len(ref_proteins), end='\r')
 

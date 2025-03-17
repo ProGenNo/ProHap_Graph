@@ -1,10 +1,10 @@
 # Specify the configuration file below:
-configfile: "config.yaml"
+configfile: "config_250128.yaml"
 
 Ensembl_FTP_URL = "ftp.ensembl.org/pub/release-" + str(config['ensembl_release']) + "/"
 annotationFilename = "Homo_sapiens.GRCh38." + str(config['ensembl_release']) + ".chr_patch_hapl_scaff"
 
-sample_names_file = open(config['rawfile_list'], 'r')
+sample_names_file = open(config['psm_file_list'], 'r')
 lines = sample_names_file.readlines()
 sample_names_file.close()
 SAMPLES = [l[:-1] for l in lines[:]]
@@ -73,7 +73,7 @@ rule build_database_graph:
         cdna_fasta="data/fasta/total_cdnas_" + str(config['ensembl_release']) + ".fa",
         haplo_table=config['haplo_table'],
         tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
-        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
     output:
         "flag_baseDB_ready"
     params:
@@ -82,31 +82,28 @@ rule build_database_graph:
         pwd=config['neo4j_pwd']
     conda: "condaenv.yaml"
     shell:
-        "python src/build_neo4j_graph.py -hap_fa {input.haplo_fasta} -ref_fa {input.ref_fasta} -cdna_fa {input.cdna_fasta} -hap_db {input.haplo_table} -annot_db {input.annot} -tr_id {input.tr_ids} -g_id {input.gene_ids} -uri {params.uri} -usr {params.usr} -p {params.pwd} && touch {output}"
+        "python src/build_neo4j_graph.py -hap_fa {input.haplo_fasta} -ref_fa {input.ref_fasta} -cdna_fa {input.cdna_fasta} -hap_db {input.haplo_table} -annot_db {input.annot} -tr_id {input.tr_ids} -g_id {input.gene_ids} -uri {params.uri} -usr {params.usr} -pwd {params.pwd} && touch {output}"
 
 rule fix_psm_report:
     input:
-        psm=config['psm_location'] + "{sample}_full_PSM_export",
+        psm=config['psm_file_location'] + "{sample}.tsv",
         haplo_table=config['haplo_table'],
-        full_fasta=config['full_fasta'],
+        haplo_fasta=config['haplo_fasta'],
         ref_fasta="data/fasta/ensembl_reference_proteinDB_" + str(config['ensembl_release']) + "_tagged.fa",
         tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
         gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
     output:
-        temp("tmp/{sample}_fixed_PSM_export")
-    params:
-        max_cores=config['max_cores']
-    threads: config['max_cores']
+        temp("tmp/{sample}_fixed.tsv")
     shell:
         "python src/psm_fix_annotation_newDB.py -i {input.psm} -o {output} -hap_tsv {input.haplo_table} -ref_fa {input.ref_fasta} -f {input.full_fasta} -tr_id {input.tr_ids} -g_id {input.gene_ids} -t {params.max_cores} -log /dev/null"
 
 rule neo4j_add_psms:
     input:
-        psm="tmp/{sample}_fixed_PSM_export",
+        psm=config['psm_file_location'] + "{sample}.tsv",
         mf=config['meta_file'],
         haplo_table=config['haplo_table'],
-        tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
-        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        tr_ids='protein_transcript_IDs_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_IDs_' + str(config['ensembl_release']) + '_full.csv',
     output:
         "tmp/{sample}_added"
     params:
@@ -136,7 +133,7 @@ rule neo4j_add_psms:
 rule get_overview_stats:
     input:
         psms=expand("tmp/{sample}_added", sample=SAMPLES),
-        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_IDs_' + str(config['ensembl_release']) + '_full.csv',
     output:
         flag="tmp/overview_stats"
     params:
