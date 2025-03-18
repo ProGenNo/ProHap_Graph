@@ -15,7 +15,7 @@ You will need a local or remote running deployment of Neo4j with the APOC plugin
     - `q-value`: Estimated Q value of the PSM,
     - `USI`: The universal spectrum identifier for this PSM (ideally also containing the peptide sequence and precursor charge),
     - `rt_Abs_error`: The difference between the observed and predicted retention time,
-    - `SpectrumTitle`: 
+    - `SpectrumTitle`: Identifier of the spectrum within the raw file (e.g., "scan=28285"),
     - `SpectrumFilename`: Name of the raw file containing the spectrum, without the suffix (e.g., `240511_S123_plasma_R1`, the PSM comes from a search on the file `240511_S123_plasma_R1.raw`). This has to match the file names in the metadata file as below.
 * Metadata file (SDRF or similar) containing information on the raw files used in the search
 

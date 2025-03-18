@@ -1,13 +1,43 @@
 # Ensembl version (use the same as was used for the ProHap translation and the reference proteome for the search)
 ensembl_release: 110
 
-# ProHap output file - FASTA file of haplotype cDNA translations (without reference and contaminants)
-haplo_fasta: ""
+# ProHap output file - concatenated FASTA file (F1)
+full_fasta: ""
 
-# ProHap output file - haplotype table
+# ProHap output file - haplotype table (F2)
 haplo_table: ""
+
+# ProHap output file - FASTA file of haplotype cDNA translations (without reference and contaminants, F3)
+haplo_fasta: ""
 
 # Neo4j instance details
 neo4j_uri: ""
 neo4j_username: ""
 neo4j_pwd: ""
+
+# Text file containing the list of file names for files containing PSMs. Include only the file names, not the full path to files.
+psm_file_list: ""
+
+# Path to the directory containing the PSM files (e.g., "data/my_experiment/240315_PSMs/")
+psm_file_location: ""
+
+# FDR threshold to filter the PSMs (specify, e.g., 0.01 for 1% FDR, or 1 to keep all PSMs) 
+qval_thr: 0.01
+
+# Accession identifier of the dataset on PRIDE (e.g., "PXD010154")
+pride_acc: ""
+
+# Path to the SDRF medatada file:
+meta_file: ""
+
+# Column names in the SDRF file (give "_" for columns that are missing)
+
+rawfile_col: "\"comment[data file]\""   # Values in this column have to match the SpectrumFilename column in the PSM files, with the file suffix included (e.g., 240511_S123_plasma_R1.raw)
+sample_col: "\"sampleAccession\""
+frag_col: "\"comment[dissociation method]\""
+proteases_col: "\"comment[cleavage agent details]\""
+instrument_col: "\"comment[instrument]\""
+tissue_col: "\"characteristics[organism part]\""
+age_col: "\"characteristics[age]\""
+sex_col: "\"characteristics[sex]\""
+phenotype_col: "\"characteristics[phenotype]\""
