@@ -104,6 +104,7 @@ rule neo4j_add_psms:
         haplo_table=config['haplo_table'],
         tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
         gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
+        base_graph="flag_baseDB_ready"
     output:
         "tmp/{sample}_added"
     params:
@@ -123,7 +124,7 @@ rule neo4j_add_psms:
         usr=config['neo4j_username'],
         pwd=config['neo4j_pwd']
     conda: "condaenv.yaml"
-    threads: 20
+    threads: 200
     shell:
         "mkdir -p tmp ; touch {params.added_peps} ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table} -mf {input.mf} -tr_id {input.tr_ids} -g_id {input.gene_ids} -qval_thr {params.qval_thr} "
         "-sample_id {params.sample_col} -ID_col {params.rawfile_col} -frag_col {params.frag_col} -prot_col {params.proteases_col} -instr_col {params.instrument_col} -tissue_col {params.tissue_col} "
@@ -134,6 +135,7 @@ rule get_overview_stats:
     input:
         psms=expand("tmp/{sample}_added", sample=SAMPLES),
         gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
+        base_graph="flag_baseDB_ready"
     output:
         flag="tmp/overview_stats"
     params:
