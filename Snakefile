@@ -1,5 +1,5 @@
 # Specify the configuration file below:
-configfile: "config_250128.yaml"
+configfile: "config.yaml"
 
 Ensembl_FTP_URL = "ftp.ensembl.org/pub/release-" + str(config['ensembl_release']) + "/"
 annotationFilename = "Homo_sapiens.GRCh38." + str(config['ensembl_release']) + ".chr_patch_hapl_scaff"
@@ -102,8 +102,8 @@ rule neo4j_add_psms:
         psm=config['psm_file_location'] + "{sample}.tsv",
         mf=config['meta_file'],
         haplo_table=config['haplo_table'],
-        tr_ids='protein_transcript_IDs_' + str(config['ensembl_release']) + '.csv',
-        gene_ids='gene_transcript_IDs_' + str(config['ensembl_release']) + '_full.csv',
+        tr_ids='protein_transcript_ids_' + str(config['ensembl_release']) + '.csv',
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
     output:
         "tmp/{sample}_added"
     params:
@@ -133,7 +133,7 @@ rule neo4j_add_psms:
 rule get_overview_stats:
     input:
         psms=expand("tmp/{sample}_added", sample=SAMPLES),
-        gene_ids='gene_transcript_IDs_' + str(config['ensembl_release']) + '_full.csv',
+        gene_ids='gene_transcript_ids_' + str(config['ensembl_release']) + '_full.csv',
     output:
         flag="tmp/overview_stats"
     params:
