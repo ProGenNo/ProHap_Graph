@@ -22,14 +22,14 @@ rule download_reference_proteome:
         "mkdir -p data/fasta ; "
         "wget " + Ensembl_FTP_URL + "fasta/homo_sapiens/pep/Homo_sapiens.GRCh38.pep.all.fa.gz -O {output}.gz && gunzip {output}.gz; "
 
-rule reference_fix_headers:
+rule reference_filter_format:
     input:
         "data/fasta/Homo_sapiens.GRCh38.pep.all.fa"
     output:
-        temp("data/fasta/ensembl_reference_proteinDB_" + str(config['ensembl_release']) + "_tagged.fa")
-    conda: "condaenv.yaml"
+        "data/fasta/ensembl_reference_proteinDB_" + str(config['ensembl_release']) + "_tagged.fa"
+    conda: "envs/prohap.yaml"
     shell:
-        "python src/fix_headers.py -i {input} -o {output} -t _ensref "
+        "python3 src/fasta_format_headers.py -i {input} -o {output} -t _ensref -use_ENST 1 "
 
 rule download_cdnas_fasta:
     output:
