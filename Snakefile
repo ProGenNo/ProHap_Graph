@@ -27,7 +27,7 @@ rule reference_filter_format:
         "data/fasta/Homo_sapiens.GRCh38.pep.all.fa"
     output:
         "data/fasta/ensembl_reference_proteinDB_" + str(config['ensembl_release']) + "_tagged.fa"
-    conda: "envs/prohap.yaml"
+    conda: "envs/condaenv.yaml"
     shell:
         "python3 src/fasta_format_headers.py -i {input} -o {output} -t _ensref -use_ENST 1 "
 
