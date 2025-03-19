@@ -24,3 +24,9 @@ Usage:
  2. Create a configuration file called `config.yaml` based on the instructions in `config_example.yaml`
  3. Test Snakemake with a dry-run: `snakemake --cores <# provided cores> -n -q`
  4. Run the Snakemake pipeline to create your protein database: `snakemake --cores <# provided cores> -p --use-conda`
+
+## Results
+
+The diagram below summarises the contents of the resulting graph database. Please see the project's Wiki page (currently under development) for details.
+
+![Database diagram](./docs/ProHap_Explorer_Fig1_nobox.svg)
