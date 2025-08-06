@@ -158,13 +158,17 @@ for index,psm_row in psm_df.iterrows():
 
     # If the peptide is new (i.e., not previously added) - create the node and the edges to proteins
     if not pep_already_added:
-        query_str = "CREATE " + Neo4jCommands.create_peptide_command('pep_'+peptide_seq, peptide_seq, str(psm_row['covered_changes_peptide']), psm_row['pep_type1'], psm_row['pep_type2'], psm_row['expected_maximum_frequency'], psm_row['possible_contaminant'])
-
         matching_proteins = psm_row['matching_proteins'].split(';')
         matching_RFs = psm_row['reading_frames'].split(';')
         protein_positions = psm_row['positions_in_proteins'].split(';')
 
         canonical_transcripts = [ prot_name for prot_name in matching_proteins if prot_name.startswith('ENST') ]
+
+        contaminant_matches = []
+        if (psm_row['possible_contaminant']):
+            contaminant_matches = [ prot for prot in matching_proteins if not ( prot.startswith('haplo_') or prot.startswith('ENST') ) ]
+        
+        query_str = "CREATE " + Neo4jCommands.create_peptide_command('pep_'+peptide_seq, peptide_seq, str(psm_row['covered_changes_peptide']), psm_row['pep_type1'], psm_row['pep_type2'], psm_row['expected_maximum_frequency'], ';'.join(contaminant_matches) if (len(contaminant_matches) > 0) else '-')
 
         for i,prot_name in enumerate(matching_proteins):
             matching_var_idxs = '-'
