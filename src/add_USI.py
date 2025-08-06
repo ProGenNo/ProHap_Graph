@@ -44,6 +44,6 @@ psm_df = pd.read_csv(args.psm_file, header=0, sep='\t')
 # Apply FDR threshold and remove contaminants and decoys
 psm_df = psm_df[(psm_df[args.qval_column] <= args.qval_threshold) & (~psm_df['psm_type1'].isin(['decoy', 'contaminant']))]  #  & (psm_df['matching_proteins'].str.count(';') < 500)
 
-psm_df['USI'] = psm_df.apply(lambda row: 'mzspec:' + args.pride_accession + ':' + row['SpectrumFilename'] + ':' + row['SpectrumTitle'].split('scan=',1)[1] + ':' + '/' + ('2' if row['charge_2'] else ('3' if row['charge_3'] else '4')))
+psm_df['USI'] = psm_df.apply(lambda row: 'mzspec:' + args.pride_accession + ':' + row['SpectrumFilename'] + ':' + row['SpectrumTitle'].split('scan=',1)[1] + ':' + '/' + ('2' if row['charge_2'] else ('3' if row['charge_3'] else '4')), axis=1)
 
 psm_df.to_csv(args.output_file, sep='\t', index=False)
