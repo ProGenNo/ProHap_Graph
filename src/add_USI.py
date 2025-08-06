@@ -34,7 +34,7 @@ def replace_mods(pep_str):
     for substr in split_str[1:]:
         mod_id = substr.split(']',1)[0]
         mod_mass_shift = float(mods[mod_id]['umod:delta']['@mono_mass'])
-        result_str += '[' + ('+' if not mod_mass_shift.startswith('-') else '') + "{:.4f}".format(mod_mass_shift) + ']' + substr.split(']',1)[1]
+        result_str += '[' + ('+' if (mod_mass_shift > 0.0) else '') + "{:.4f}".format(mod_mass_shift) + ']' + substr.split(']',1)[1]
 
     return result_str
 
