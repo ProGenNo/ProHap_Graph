@@ -141,7 +141,7 @@ rule neo4j_add_psms:
     conda: "condaenv.yaml"
     threads: 200
     shell:
-        "touch {params.added_peps} ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table} -mf {input.mf} -tr_id {input.tr_ids} -g_id {input.gene_ids} -qval_thr {params.qval_thr} "
+        "touch {params.added_peps} ; python src/neo4j_add_psms.py -psm {input.psm} -hap_tsv {input.haplo_table} -mf {input.mf} -tr_id {input.tr_ids} -g_id {input.gene_ids} "
         "-sample_id {params.sample_col} -ID_col {params.rawfile_col} -frag_col {params.frag_col} -prot_col {params.proteases_col} -instr_col {params.instrument_col} -tissue_col {params.tissue_col} "
         "-age_col {params.age_col} -sex_col {params.sex_col} -pheno_col {params.phenotype_col} -pride_acc {params.pride_acc} -added_peps {params.added_peps} "
         "-uri {params.uri} -usr {params.usr} -pwd {params.pwd} && touch {output}"
