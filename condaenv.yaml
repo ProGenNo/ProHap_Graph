@@ -11,3 +11,4 @@ dependencies:
     - pandas
     - argparse
     - neo4j
+    - xmltodict

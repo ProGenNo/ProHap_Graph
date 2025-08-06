@@ -17,9 +17,6 @@ parser.add_argument("-rawfile_id", dest="rawfile_id", required=False,
 parser.add_argument("-qval_col", dest="qval_column", required=False,
                     help="q-value column name in the PSM table", default="q-value")
 
-parser.add_argument("-qval_thr", dest="qval_threshold", required=False, type=float,
-                    help="maximum acceptable q-value, default: 0.01", default=0.01)
-
 parser.add_argument("-mf", dest="metadata_file", required=True,
                     help="sample metadata CSV file")
 
@@ -78,9 +75,6 @@ args = parser.parse_args()
 
 print ("Reading", args.psm_file)
 psm_df = pd.read_csv(args.psm_file, header=0, sep='\t')
-
-# Apply FDR threshold
-psm_df = psm_df[(psm_df[args.qval_column] <= args.qval_threshold)]  #  & (psm_df['matching_proteins'].str.count(';') < 500)
 
 # Sort by PEP (to have the highest-scoring PSM always on top for each spectrum), rename the PEP column for compatibility
 psm_df.sort_values(by='posterior_error_prob', inplace=True)
@@ -164,7 +158,7 @@ for index,psm_row in psm_df.iterrows():
 
     # If the peptide is new (i.e., not previously added) - create the node and the edges to proteins
     if not pep_already_added:
-        query_str = "CREATE " + Neo4jCommands.create_peptide_command('pep_'+peptide_seq, peptide_seq, str(psm_row['covered_changes_peptide']), psm_row['pep_type1'], psm_row['pep_type2'], psm_row['expected_maximum_frequency'])
+        query_str = "CREATE " + Neo4jCommands.create_peptide_command('pep_'+peptide_seq, peptide_seq, str(psm_row['covered_changes_peptide']), psm_row['pep_type1'], psm_row['pep_type2'], psm_row['expected_maximum_frequency'], psm_row['possible_contaminant'])
 
         matching_proteins = psm_row['matching_proteins'].split(';')
         matching_RFs = psm_row['reading_frames'].split(';')
